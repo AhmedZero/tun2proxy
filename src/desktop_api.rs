@@ -5,7 +5,7 @@ use crate::{
     ArgVerbosity, Args,
 };
 use std::os::raw::{c_char, c_int};
-use tproxy_config::{TproxyArgs, TUN_GATEWAY, TUN_IPV4, TUN_NETMASK};
+use tproxy_config::TproxyArgs;
 use tun::{AbstractDevice, DEFAULT_MTU as MTU};
 
 static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> = std::sync::Mutex::new(None);
@@ -84,8 +84,8 @@ pub async fn desktop_run_async(args: Args, shutdown_token: tokio_util::sync::Can
     let bypass_ips = args.bypass.clone();
 
     let mut tun_config = tun::Configuration::default();
-    tun_config.address(TUN_IPV4).netmask(TUN_NETMASK).mtu(MTU).up();
-    tun_config.destination(TUN_GATEWAY);
+    tun_config.address(args.netif_ipaddr).netmask(args.netif_netmask).mtu(MTU).up();
+    tun_config.destination(args.netif_gateway);
     #[cfg(unix)]
     if let Some(fd) = args.tun_fd {
         tun_config.raw_fd(fd);

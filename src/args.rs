@@ -60,6 +60,16 @@ pub struct Args {
     #[arg(requires = "unshare")]
     pub admin_command: Vec<OsString>,
 
+    #[arg(long, value_name = "IP", default_value = "10.0.0.33")]
+    pub netif_ipaddr: IpAddr,
+
+    #[arg(long, value_name = "IP", default_value = "255.255.255.0")]
+    pub netif_netmask: IpAddr,
+
+    #[arg(long, value_name = "IP", default_value = "10.0.0.1")]
+    pub netif_gateway: IpAddr,
+
+
     /// IPv6 enabled
     #[arg(short = '6', long)]
     pub ipv6_enabled: bool,
@@ -156,6 +166,9 @@ impl Default for Args {
             socket_transfer_fd: None,
             #[cfg(target_os = "linux")]
             admin_command: Vec::new(),
+            netif_ipaddr: "10.0.0.33".parse().unwrap(),
+            netif_netmask: "255.255.255.0".parse().unwrap(),
+            netif_gateway: "10.0.0.1".parse().unwrap(),
             ipv6_enabled: false,
             setup,
             dns: ArgDns::default(),
@@ -232,6 +245,21 @@ impl Args {
 
     pub fn tun(&mut self, tun: String) -> &mut Self {
         self.tun = Some(tun);
+        self
+    }
+
+    pub fn netif_ipaddr(&mut self, netif_ipaddr: IpAddr) -> &mut Self {
+        self.netif_ipaddr = netif_ipaddr;
+        self
+    }
+
+    pub fn netif_netmask(&mut self, netif_netmask: IpAddr) -> &mut Self {
+        self.netif_netmask = netif_netmask;
+        self
+    }
+
+    pub fn netif_gateway(&mut self, netif_gateway: IpAddr) -> &mut Self {
+        self.netif_gateway = netif_gateway;
         self
     }
 
