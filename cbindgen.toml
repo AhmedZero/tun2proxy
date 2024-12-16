@@ -4,6 +4,7 @@ cpp_compat = true
 [export]
 include = [
     "tun2proxy_with_fd_run",
+    "tun2proxy_with_args",
     "tun2proxy_with_name_run",
     "tun2proxy_with_name_stop",
     "tun2proxy_with_fd_stop",

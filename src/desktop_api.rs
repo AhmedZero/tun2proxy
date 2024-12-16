@@ -5,8 +5,11 @@ use crate::{
     ArgVerbosity, Args,
 };
 use std::os::raw::{c_char, c_int};
+use clap::Parser;
 use tproxy_config::TproxyArgs;
 use tun::{AbstractDevice, DEFAULT_MTU as MTU};
+use std::ffi::CStr;
+use shell_words::split;
 
 static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> = std::sync::Mutex::new(None);
 
@@ -78,11 +81,64 @@ pub unsafe extern "C" fn tun2proxy_with_name_run(
 
     exit_code
 }
+/// Function to convert a `*const c_char` to a Rust `&str`
+unsafe fn c_char_to_str(c_str: *const c_char) -> &'static str {
+    CStr::from_ptr(c_str).to_str().expect("Invalid UTF-8 string")
+}
 
+#[no_mangle]
+pub unsafe extern "C" fn tun2proxy_with_args(
+    argsstr: *const c_char,
+    verbosity: ArgVerbosity,
+) -> c_int {
+    let shutdown_token = tokio_util::sync::CancellationToken::new();
+    {
+        if let Ok(mut lock) = TUN_QUIT.lock() {
+            if lock.is_some() {
+                return -1;
+            }
+            *lock = Some(shutdown_token.clone());
+        } else {
+            return -2;
+        }
+    }
+
+    log::set_max_level(verbosity.into());
+    if let Err(err) = log::set_boxed_logger(Box::<crate::dump_logger::DumpLogger>::default()) {
+        log::warn!("set logger error: {}", err);
+    }
+
+    let args_string = unsafe { c_char_to_str(argsstr) };
+    let args_vec = split(args_string).expect("Failed to split input string");
+
+    let args = Args::parse_from(args_vec);
+
+    #[cfg(target_os = "linux")]
+    args.setup(_root_privilege);
+
+
+
+    let main_loop = async move {
+        if let Err(err) = desktop_run_async(args, shutdown_token).await {
+            log::error!("main loop error: {}", err);
+            return Err(err);
+        }
+        Ok(())
+    };
+
+    let exit_code = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+        Err(_e) => -3,
+        Ok(rt) => match rt.block_on(main_loop) {
+            Ok(_) => 0,
+            Err(_e) => -4,
+        },
+    };
+
+    exit_code
+}
 /// Run the tun2proxy component with some arguments.
 pub async fn desktop_run_async(args: Args, shutdown_token: tokio_util::sync::CancellationToken) -> std::io::Result<()> {
-    let bypass_ips = args.bypass.clone();
-
+    let bypass_ips: Vec<tproxy_config::IpCidr> = args.bypass.clone();
     let mut tun_config = tun::Configuration::default();
     tun_config.address(args.netif_ipaddr).netmask(args.netif_netmask).mtu(MTU).up();
     tun_config.destination(args.netif_gateway);
