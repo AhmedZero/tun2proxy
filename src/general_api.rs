@@ -3,7 +3,7 @@ use crate::{
     ArgVerbosity, Args,
 };
 use std::os::raw::{c_char, c_int, c_ushort};
-
+use shell_words::split;
 static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> = std::sync::Mutex::new(None);
 
 /// # Safety
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn tun2proxy_run_with_cli_args(cli_args: *const c_char, tu
     let Ok(cli_args) = std::ffi::CStr::from_ptr(cli_args).to_str() else {
         return -5;
     };
-    let args = <Args as ::clap::Parser>::parse_from(cli_args.split_whitespace());
+    let args = <Args as ::clap::Parser>::parse_from(split(cli_args).expect("Failed to split input string"));
     general_run_for_api(args, tun_mtu, packet_information)
 }
 
@@ -140,9 +140,8 @@ pub async fn general_run_async(
 
     #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
     {
-        use tproxy_config::{TUN_GATEWAY, TUN_IPV4, TUN_NETMASK};
-        tun_config.address(TUN_IPV4).netmask(TUN_NETMASK).mtu(tun_mtu).up();
-        tun_config.destination(TUN_GATEWAY);
+        tun_config.address(args.netif_ipaddr).netmask(args.netif_netmask).mtu(tun_mtu).up();
+        tun_config.destination(args.netif_gateway);
     }
 
     #[cfg(unix)]
