@@ -1,6 +1,6 @@
 [package]
 name = "tun2proxy"
-version = "0.6.6"
+version = "0.7.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/tun2proxy/tun2proxy"
@@ -13,13 +13,22 @@ rust-version = "1.80"
 [lib]
 crate-type = ["staticlib", "cdylib", "lib"]
 
+[[bin]]
+name = "tun2proxy-bin"
+path = "src/bin/main.rs"
+
+[[bin]]
+name = "udpgw-server"
+path = "src/bin/udpgw_server.rs"
+required-features = ["udpgw"]
+
 [features]
 default = ["udpgw"]
 udpgw = []
 
 [dependencies]
 async-trait = "0.1"
-base64 = { version = "0.22" }
+base64easy = "0.1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help", "color"] }
 ctrlc2 = { version = "3", features = ["tokio", "termination"] }
@@ -67,15 +76,6 @@ nix = { version = "0.29", default-features = false, features = [
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-service = "0.7"
-
-[[bin]]
-name = "tun2proxy-bin"
-path = "src/bin/main.rs"
-
-[[bin]]
-name = "udpgw-server"
-path = "src/bin/udpgw_server.rs"
-required-features = ["udpgw"]
 
 [profile.release]
 strip = "symbols"
